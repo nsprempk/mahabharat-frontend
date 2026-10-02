@@ -13,6 +13,7 @@ import { motion } from "framer-motion";
 import Footer from "../components/Footer";
 
 import Navbar from "../components/Navbar";
+import SEO from "../components/SEO";
 import API from "../services/api";
 
 /*
@@ -453,17 +454,29 @@ export default function Verse() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-[#faf7f0]">
-        <Navbar />
+      <>
+        <SEO
+          title={`भगवद्गीता अध्याय ${chapterNumber} श्लोक ${verseNumber} | श्रीमद्भगवद्गीता`}
+          description={
+            verse.hindiMeaning
+              ? `भगवद्गीता अध्याय ${chapterNumber}, श्लोक ${verseNumber} का संस्कृत पाठ, लिप्यंतरण और हिंदी अर्थ पढ़ें। ${verse.hindiMeaning}`
+              : `भगवद्गीता अध्याय ${chapterNumber}, श्लोक ${verseNumber} का संस्कृत पाठ, लिप्यंतरण और हिंदी अर्थ पढ़ें।`
+          }
+          canonical={`/gita/adhyay/${chapterNumber}/shlok/${verseNumber}`}
+          type="article"
+        />
+        <main className="min-h-screen bg-[#faf7f0]">
+          <Navbar />
 
-        <section className="flex min-h-[70vh] items-center justify-center px-5 pt-24">
-          <div className="text-center">
-            <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-amber-200 border-t-amber-600" />
+          <section className="flex min-h-[70vh] items-center justify-center px-5 pt-24">
+            <div className="text-center">
+              <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-amber-200 border-t-amber-600" />
 
-            <p className="mt-5 text-gray-500">श्लोक लोड हो रहा है...</p>
-          </div>
-        </section>
-      </main>
+              <p className="mt-5 text-gray-500">श्लोक लोड हो रहा है...</p>
+            </div>
+          </section>
+        </main>
+      </>
     );
   }
 
