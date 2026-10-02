@@ -6,91 +6,75 @@ import {
   Copy,
   Heart,
   Share2,
-  Volume2,
 } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import Footer from "../components/Footer";
 
 import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
 import SEO from "../components/SEO";
 import API from "../services/api";
-
-/*
-|--------------------------------------------------------------------------
-| Transliteration formatting
-|--------------------------------------------------------------------------
-*/
-
-function formatTransliteration(text = "") {
-  const words = text.trim().split(/\s+/);
-
-  if (!words.length || !text.trim()) {
-    return [];
-  }
-
-  const lines = [];
-  let currentLine = [];
-  let currentLength = 0;
-
-  words.forEach((word) => {
-    const nextLength =
-      currentLength + word.length + (currentLine.length ? 1 : 0);
-
-    if (currentLine.length >= 4 || nextLength > 36) {
-      lines.push(currentLine.join(" "));
-
-      currentLine = [word];
-      currentLength = word.length;
-    } else {
-      currentLine.push(word);
-      currentLength = nextLength;
-    }
-  });
-
-  if (currentLine.length) {
-    lines.push(currentLine.join(" "));
-  }
-
-  return lines;
-}
-
-/*
-|--------------------------------------------------------------------------
-| Reading history
-|--------------------------------------------------------------------------
-*/
 
 const HISTORY_KEY = "gita-reading-history";
 
 function saveReadingHistory({ chapterNumber, verseNumber, sanskrit }) {
   try {
-    const oldHistory = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+    const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
 
-    const newEntry = {
+    const entry = {
       chapterNumber: Number(chapterNumber),
-
       verseNumber: Number(verseNumber),
-
       sanskrit: sanskrit || "",
-
       updatedAt: new Date().toISOString(),
     };
 
-    const filtered = oldHistory.filter(
-      (item) =>
-        !(
-          Number(item.chapterNumber) === Number(chapterNumber) &&
-          Number(item.verseNumber) === Number(verseNumber)
-        ),
-    );
+    const filtered = Array.isArray(history)
+      ? history.filter(
+          (item) =>
+            !(
+              Number(item.chapterNumber) === Number(chapterNumber) &&
+              Number(item.verseNumber) === Number(verseNumber)
+            ),
+        )
+      : [];
 
-    filtered.unshift(newEntry);
+    filtered.unshift(entry);
 
     localStorage.setItem(HISTORY_KEY, JSON.stringify(filtered.slice(0, 20)));
   } catch (error) {
-    console.warn("Reading history could not be saved:", error);
+    console.warn("Reading history error:", error);
   }
+}
+
+function formatTransliteration(text = "") {
+  if (!text.trim()) {
+    return [];
+  }
+
+  const words = text.trim().split(/\s+/);
+
+  const lines = [];
+  let line = [];
+  let length = 0;
+
+  for (const word of words) {
+    const extra = line.length > 0 ? word.length + 1 : word.length;
+
+    if (line.length >= 4 || length + extra > 42) {
+      lines.push(line.join(" "));
+      line = [word];
+      length = word.length;
+    } else {
+      line.push(word);
+      length += extra;
+    }
+  }
+
+  if (line.length > 0) {
+    lines.push(line.join(" "));
+  }
+
+  return lines;
 }
 
 export default function Verse() {
@@ -114,11 +98,172 @@ export default function Verse() {
 
   const [liked, setLiked] = useState(false);
 
-  const [chapterProgress, setChapterProgress] = useState(0);
+  const [copied, setCopied] = useState(false);
 
   const [chapterVerseCount, setChapterVerseCount] = useState(0);
 
-  const [copied, setCopied] = useState(false);
+  const [chapterProgress, setChapterProgress] = useState(0);
+
+  /*
+  |--------------------------------------------------------------------------
+  | Load verse
+  |--------------------------------------------------------------------------
+  */
+
+  useEffect(() => {
+    let active = true;
+
+    const loadVerse = async () => {
+      try {
+        setLoading(true);
+        setError("");
+
+        const [verseResponse, versesResponse, chaptersResponse] =
+          await Promise.all([
+            API.get(`/verses/chapter/${chapterNumber}/verse/${verseNumber}`),
+
+            API.get(`/verses/chapter/${chapterNumber}`),
+
+            API.get("/chapters"),
+          ]);
+
+        if (!active) {
+          return;
+        }
+
+        const verseData = verseResponse.data;
+
+        const versesData = versesResponse.data;
+
+        const chaptersData = chaptersResponse.data;
+
+        /*
+        |--------------------------------------------------------------------------
+        | Validate single verse
+        |--------------------------------------------------------------------------
+        */
+
+        if (!verseData?.success) {
+          throw new Error(verseData?.message || "श्लोक उपलब्ध नहीं है।");
+        }
+
+        if (!verseData?.verse) {
+          throw new Error("श्लोक का डेटा उपलब्ध नहीं है।");
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Current verse
+        |--------------------------------------------------------------------------
+        */
+
+        setVerse(verseData.verse);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Previous / next
+        |--------------------------------------------------------------------------
+        */
+
+        setPreviousVerse(verseData.previousVerse || null);
+
+        setNextVerse(verseData.nextVerse || null);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Chapter verses
+        |--------------------------------------------------------------------------
+        */
+
+        const verseList = Array.isArray(versesData?.verses)
+          ? versesData.verses
+          : Array.isArray(versesData?.data)
+            ? versesData.data
+            : [];
+
+        setChapterVerses(verseList);
+
+        const count = Number(verseData.verseCount) || verseList.length || 0;
+
+        setChapterVerseCount(count);
+
+        setChapterProgress(
+          Number(verseData.progress) ||
+            (count > 0 ? Math.round((Number(verseNumber) / count) * 100) : 0),
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Chapters
+        |--------------------------------------------------------------------------
+        */
+
+        const chapterList = Array.isArray(chaptersData?.data)
+          ? chaptersData.data
+          : Array.isArray(chaptersData?.chapters)
+            ? chaptersData.chapters
+            : [];
+
+        setChapters(chapterList);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Reading history
+        |--------------------------------------------------------------------------
+        */
+
+        saveReadingHistory({
+          chapterNumber,
+          verseNumber,
+          sanskrit: verseData.verse.sanskrit,
+        });
+
+        /*
+        |--------------------------------------------------------------------------
+        | Favorite
+        |--------------------------------------------------------------------------
+        */
+
+        const favoriteKey = `gita-favorite-${chapterNumber}-${verseNumber}`;
+
+        setLiked(localStorage.getItem(favoriteKey) === "true");
+      } catch (err) {
+        if (!active) {
+          return;
+        }
+
+        console.error("Verse loading error:", err);
+
+        setError(
+          err.response?.data?.message ||
+            err.message ||
+            "श्लोक लोड नहीं हो सका।",
+        );
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    };
+
+    if (chapterNumber && verseNumber) {
+      loadVerse();
+    } else {
+      setError("श्लोक का URL सही नहीं है।");
+
+      setLoading(false);
+    }
+
+    return () => {
+      active = false;
+    };
+  }, [chapterNumber, verseNumber]);
+
+  /*
+  |--------------------------------------------------------------------------
+  | Transliteration
+  |--------------------------------------------------------------------------
+  */
 
   const transliterationLines = useMemo(
     () => formatTransliteration(verse?.transliteration || ""),
@@ -127,146 +272,21 @@ export default function Verse() {
 
   /*
   |--------------------------------------------------------------------------
-  | Load verse + navigation data
-  |--------------------------------------------------------------------------
-  */
-
-  useEffect(() => {
-    if (!chapterNumber || !verseNumber) {
-      setError("श्लोक की जानकारी उपलब्ध नहीं है।");
-      setLoading(false);
-      return;
-    }
-
-    loadVerse();
-  }, [chapterNumber, verseNumber]);
-
-  const loadVerse = async () => {
-    try {
-      setLoading(true);
-      setError("");
-      setCopied(false);
-
-      const [verseResponse, chapterResponse, chaptersResponse] =
-        await Promise.all([
-          API.get(`/verses/chapter/${chapterNumber}/verse/${verseNumber}`),
-
-          API.get(`/verses/chapter/${chapterNumber}`),
-
-          API.get("/chapters"),
-        ]);
-
-      const verseResult = verseResponse.data;
-
-      const chapterResult = chapterResponse.data;
-
-      const chaptersResult = chaptersResponse.data;
-
-      if (!verseResult?.success) {
-        throw new Error(verseResult?.message || "श्लोक उपलब्ध नहीं है।");
-      }
-
-      if (!chapterResult?.success) {
-        throw new Error(
-          chapterResult?.message || "अध्याय के श्लोक उपलब्ध नहीं हैं।",
-        );
-      }
-
-      /*
-      |--------------------------------------------------------------------------
-      | Current verse
-      |--------------------------------------------------------------------------
-      */
-
-      const currentVerse = verseResult.verse;
-
-      if (!currentVerse) {
-        throw new Error("श्लोक का डेटा प्राप्त नहीं हुआ।");
-      }
-
-      setVerse(currentVerse);
-
-      setPreviousVerse(verseResult.previousVerse || null);
-
-      setNextVerse(verseResult.nextVerse || null);
-
-      /*
-      |--------------------------------------------------------------------------
-      | Chapter verses
-      |--------------------------------------------------------------------------
-      */
-
-      const allVerses = Array.isArray(chapterResult.verses)
-        ? chapterResult.verses
-        : [];
-
-      setChapterVerses(allVerses);
-
-      setChapterVerseCount(verseResult.verseCount || allVerses.length);
-
-      setChapterProgress(verseResult.progress || 0);
-
-      /*
-      |--------------------------------------------------------------------------
-      | Chapters
-      |--------------------------------------------------------------------------
-      */
-
-      const chapterList = chaptersResult?.success
-        ? chaptersResult.data || chaptersResult.chapters || []
-        : [];
-
-      setChapters(Array.isArray(chapterList) ? chapterList : []);
-
-      /*
-      |--------------------------------------------------------------------------
-      | Save history
-      |--------------------------------------------------------------------------
-      */
-
-      saveReadingHistory({
-        chapterNumber,
-        verseNumber,
-        sanskrit: currentVerse.sanskrit,
-      });
-
-      /*
-      |--------------------------------------------------------------------------
-      | Favorite
-      |--------------------------------------------------------------------------
-      */
-
-      const favoriteKey = `gita-favorite-${chapterNumber}-${verseNumber}`;
-
-      setLiked(localStorage.getItem(favoriteKey) === "true");
-    } catch (err) {
-      console.error("Verse loading error:", err);
-
-      setError(
-        err.response?.data?.message || err.message || "श्लोक लोड नहीं हो सका।",
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  /*
-  |--------------------------------------------------------------------------
   | Favorite
   |--------------------------------------------------------------------------
   */
 
   const toggleFavorite = () => {
-    const favoriteKey = `gita-favorite-${chapterNumber}-${verseNumber}`;
+    const key = `gita-favorite-${chapterNumber}-${verseNumber}`;
 
     const newValue = !liked;
 
     setLiked(newValue);
 
     if (newValue) {
-      localStorage.setItem(favoriteKey, "true");
+      localStorage.setItem(key, "true");
     } else {
-      localStorage.removeItem(favoriteKey);
+      localStorage.removeItem(key);
     }
   };
 
@@ -282,13 +302,13 @@ export default function Verse() {
     }
 
     const text = [
-      "भगवद्गीता",
+      "श्रीमद्भगवद्गीता",
       `अध्याय ${chapterNumber} • श्लोक ${verseNumber}`,
       "",
-      verse.sanskrit,
+      verse.sanskrit || "",
       "",
       "हिंदी अर्थ",
-      verse.hindiMeaning,
+      verse.hindiMeaning || "",
     ].join("\n");
 
     try {
@@ -299,8 +319,8 @@ export default function Verse() {
       window.setTimeout(() => {
         setCopied(false);
       }, 1800);
-    } catch (error) {
-      console.error("Copy error:", error);
+    } catch (err) {
+      console.error("Copy failed:", err);
     }
   };
 
@@ -315,46 +335,50 @@ export default function Verse() {
       return;
     }
 
-    const url = window.location.href;
+    const text = [
+      "श्रीमद्भगवद्गीता",
+      `अध्याय ${chapterNumber} • श्लोक ${verseNumber}`,
+      "",
+      verse.sanskrit || "",
+    ].join("\n");
 
     try {
       if (navigator.share) {
         await navigator.share({
           title: `भगवद्गीता • अध्याय ${chapterNumber} • श्लोक ${verseNumber}`,
-
-          text: verse.sanskrit,
-
-          url,
+          text,
+          url: window.location.href,
         });
       } else {
-        await navigator.clipboard.writeText(url);
+        await navigator.clipboard.writeText(window.location.href);
 
         alert("लिंक कॉपी हो गया।");
       }
-    } catch {
-      // Sharing was cancelled.
+    } catch (err) {
+      // User may have cancelled sharing.
+      console.log("Share cancelled.");
     }
   };
 
   /*
   |--------------------------------------------------------------------------
-  | Open selected verse
+  | Open verse
   |--------------------------------------------------------------------------
   */
 
-  const openVerse = (selectedVerseNumber) => {
-    const number = Number(selectedVerseNumber);
+  const openVerse = (number) => {
+    const selected = Number(number);
 
-    if (!Number.isInteger(number) || number < 1) {
+    if (!Number.isInteger(selected) || selected < 1) {
       return;
     }
 
-    navigate(`/gita/adhyay/${chapterNumber}/shlok/${number}`);
+    navigate(`/gita/adhyay/${chapterNumber}/shlok/${selected}`);
   };
 
   /*
   |--------------------------------------------------------------------------
-  | Previous verse
+  | Previous
   |--------------------------------------------------------------------------
   */
 
@@ -367,29 +391,24 @@ export default function Verse() {
       return;
     }
 
-    /*
-     * First verse of current chapter.
-     * Open previous chapter's last verse.
-     */
+    const current = Number(chapterNumber);
 
-    const currentChapter = Number(chapterNumber);
-
-    if (currentChapter > 1) {
-      const previousChapter = chapters.find(
-        (chapter) => Number(chapter.number) === currentChapter - 1,
-      );
-
-      if (previousChapter) {
-        navigate(
-          `/gita/adhyay/${currentChapter - 1}/shlok/${previousChapter.verseCount}`,
-        );
-      }
+    if (current <= 1) {
+      return;
     }
+
+    const previousChapter = chapters.find(
+      (item) => Number(item.number) === current - 1,
+    );
+
+    const previousCount = Number(previousChapter?.verseCount) || 1;
+
+    navigate(`/gita/adhyay/${current - 1}/shlok/${previousCount}`);
   };
 
   /*
   |--------------------------------------------------------------------------
-  | Next verse
+  | Next
   |--------------------------------------------------------------------------
   */
 
@@ -400,50 +419,55 @@ export default function Verse() {
       return;
     }
 
-    /*
-     * Last verse of current chapter.
-     * Open next chapter's first verse.
-     */
+    const current = Number(chapterNumber);
 
-    const currentChapter = Number(chapterNumber);
-
-    if (currentChapter < 18) {
-      navigate(`/gita/adhyay/${currentChapter + 1}/shlok/1`);
+    if (current >= 18) {
+      return;
     }
+
+    navigate(`/gita/adhyay/${current + 1}/shlok/1`);
   };
 
   /*
   |--------------------------------------------------------------------------
-  | Chapter navigation
+  | Previous chapter
   |--------------------------------------------------------------------------
   */
 
   const goPreviousChapter = () => {
-    const currentChapter = Number(chapterNumber);
+    const current = Number(chapterNumber);
 
-    if (currentChapter <= 1) {
+    if (current <= 1) {
       return;
     }
 
     const previousChapter = chapters.find(
-      (chapter) => Number(chapter.number) === currentChapter - 1,
+      (item) => Number(item.number) === current - 1,
     );
 
-    if (previousChapter) {
-      navigate(
-        `/gita/adhyay/${currentChapter - 1}/shlok/${previousChapter.verseCount}`,
-      );
-    }
-  };
-
-  const goNextChapter = () => {
-    const currentChapter = Number(chapterNumber);
-
-    if (currentChapter >= 18) {
+    if (!previousChapter) {
       return;
     }
 
-    navigate(`/gita/adhyay/${currentChapter + 1}/shlok/1`);
+    const count = Number(previousChapter.verseCount) || 1;
+
+    navigate(`/gita/adhyay/${current - 1}/shlok/${count}`);
+  };
+
+  /*
+  |--------------------------------------------------------------------------
+  | Next chapter
+  |--------------------------------------------------------------------------
+  */
+
+  const goNextChapter = () => {
+    const current = Number(chapterNumber);
+
+    if (current >= 18) {
+      return;
+    }
+
+    navigate(`/gita/adhyay/${current + 1}/shlok/1`);
   };
 
   /*
@@ -454,29 +478,19 @@ export default function Verse() {
 
   if (loading) {
     return (
-      <>
-        <SEO
-          title={`भगवद्गीता अध्याय ${chapterNumber} श्लोक ${verseNumber} | श्रीमद्भगवद्गीता`}
-          description={
-            verse.hindiMeaning
-              ? `भगवद्गीता अध्याय ${chapterNumber}, श्लोक ${verseNumber} का संस्कृत पाठ, लिप्यंतरण और हिंदी अर्थ पढ़ें। ${verse.hindiMeaning}`
-              : `भगवद्गीता अध्याय ${chapterNumber}, श्लोक ${verseNumber} का संस्कृत पाठ, लिप्यंतरण और हिंदी अर्थ पढ़ें।`
-          }
-          canonical={`/gita/adhyay/${chapterNumber}/shlok/${verseNumber}`}
-          type="article"
-        />
-        <main className="min-h-screen bg-[#faf7f0]">
-          <Navbar />
+      <main className="min-h-screen bg-[#faf7f0]">
+        <Navbar />
 
-          <section className="flex min-h-[70vh] items-center justify-center px-5 pt-24">
-            <div className="text-center">
-              <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-amber-200 border-t-amber-600" />
+        <section className="flex min-h-[70vh] items-center justify-center px-5 pt-24">
+          <div className="text-center">
+            <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-amber-200 border-t-amber-600" />
 
-              <p className="mt-5 text-gray-500">श्लोक लोड हो रहा है...</p>
-            </div>
-          </section>
-        </main>
-      </>
+            <p className="mt-5 text-gray-500">श्लोक लोड हो रहा है...</p>
+          </div>
+        </section>
+
+        <Footer />
+      </main>
     );
   }
 
@@ -499,7 +513,9 @@ export default function Verse() {
               श्लोक उपलब्ध नहीं है
             </h1>
 
-            <p className="mt-3 leading-7 text-gray-500">{error}</p>
+            <p className="mt-3 leading-7 text-gray-500">
+              {error || "श्लोक का डेटा उपलब्ध नहीं है।"}
+            </p>
 
             <Link
               to={`/gita/adhyay/${chapterNumber}`}
@@ -510,38 +526,49 @@ export default function Verse() {
             </Link>
           </div>
         </section>
+
+        <Footer />
       </main>
     );
   }
 
-  /*
-  |--------------------------------------------------------------------------
-  | Is this first / last chapter?
-  |--------------------------------------------------------------------------
-  */
+  const currentChapter = Number(chapterNumber);
+
+  const currentVerseNumber = Number(verseNumber);
 
   const isFirstVerse = !previousVerse;
 
   const isLastVerse = !nextVerse;
 
-  const isFirstChapter = Number(chapterNumber) === 1;
+  const isFirstChapter = currentChapter === 1;
 
-  const isLastChapter = Number(chapterNumber) === 18;
+  const isLastChapter = currentChapter === 18;
 
   return (
     <main className="min-h-screen bg-[#faf7f0]">
+      <SEO
+        title={`भगवद्गीता अध्याय ${currentChapter} श्लोक ${currentVerseNumber} | श्रीमद्भगवद्गीता`}
+        description={
+          verse.hindiMeaning
+            ? `भगवद्गीता अध्याय ${currentChapter}, श्लोक ${currentVerseNumber} का संस्कृत पाठ, लिप्यंतरण और हिंदी अर्थ पढ़ें। ${verse.hindiMeaning}`
+            : `भगवद्गीता अध्याय ${currentChapter}, श्लोक ${currentVerseNumber} का संस्कृत पाठ, लिप्यंतरण और हिंदी अर्थ पढ़ें।`
+        }
+        canonical={`/gita/adhyay/${currentChapter}/shlok/${currentVerseNumber}`}
+        type="article"
+      />
+
       <Navbar />
 
       {/* HEADER */}
       <section className="relative overflow-hidden bg-[#111827] px-5 pb-14 pt-32">
-        <div className="absolute -right-32 -top-32 h-80 w-80 rounded-full bg-amber-500/10 blur-3xl" />
+        <div className="absolute -right-40 -top-40 h-96 w-96 rounded-full bg-amber-500/10 blur-3xl" />
 
-        <div className="absolute -bottom-40 -left-20 h-80 w-80 rounded-full bg-orange-500/10 blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 h-96 w-96 rounded-full bg-orange-500/10 blur-3xl" />
 
         <div className="relative mx-auto max-w-5xl">
           <Link
-            to={`/gita/adhyay/${chapterNumber}`}
-            className="inline-flex items-center gap-2 text-sm font-medium text-white/60 transition hover:text-white"
+            to={`/gita/adhyay/${currentChapter}`}
+            className="inline-flex items-center gap-2 text-sm text-white/60 transition hover:text-white"
           >
             <ArrowLeft size={17} />
             अध्याय पर वापस जाएँ
@@ -563,18 +590,20 @@ export default function Verse() {
             </p>
 
             <h1 className="mt-4 text-3xl font-bold text-white sm:text-5xl">
-              अध्याय {chapterNumber}
+              अध्याय {currentChapter}
             </h1>
 
-            <p className="mt-3 text-lg text-white/60">श्लोक {verseNumber}</p>
+            <p className="mt-3 text-lg text-white/60">
+              श्लोक {currentVerseNumber}
+            </p>
 
-            {/* Progress */}
+            {/* PROGRESS */}
             <div className="mt-7 max-w-xl">
               <div className="mb-2 flex items-center justify-between text-sm text-white/50">
                 <span>अध्याय की प्रगति</span>
 
                 <span>
-                  {verseNumber} / {chapterVerseCount}
+                  {currentVerseNumber} / {chapterVerseCount}
                 </span>
               </div>
 
@@ -584,7 +613,7 @@ export default function Verse() {
                     width: 0,
                   }}
                   animate={{
-                    width: `${chapterProgress}%`,
+                    width: `${Math.max(0, Math.min(100, chapterProgress))}%`,
                   }}
                   transition={{
                     duration: 0.6,
@@ -601,7 +630,7 @@ export default function Verse() {
         </div>
       </section>
 
-      {/* READER */}
+      {/* CONTENT */}
       <section className="mx-auto max-w-5xl px-5 py-12">
         <motion.article
           initial={{
@@ -617,32 +646,19 @@ export default function Verse() {
           }}
           className="overflow-hidden rounded-[2rem] border border-amber-900/10 bg-white shadow-xl"
         >
-          {/* IMAGE PLACEHOLDER */}
-          <div className="relative flex aspect-[16/7] items-center justify-center overflow-hidden bg-gradient-to-br from-amber-100 via-orange-50 to-yellow-100">
-            <div className="absolute h-64 w-64 rounded-full border border-amber-400/20" />
-
-            <div className="absolute h-48 w-48 rounded-full border border-amber-400/20" />
-
-            <div className="absolute h-32 w-32 rounded-full border border-amber-400/20" />
-
-            <div className="relative font-serif text-7xl text-amber-500/40">
-              ॐ
-            </div>
-          </div>
-
           <div className="p-6 sm:p-10">
-            {/* TOP BAR */}
+            {/* TOP ACTIONS */}
             <div className="flex flex-wrap items-center justify-between gap-4">
               <span className="rounded-full bg-amber-100 px-4 py-2 text-sm font-semibold text-amber-700">
-                अध्याय {chapterNumber} • श्लोक {verseNumber}
+                अध्याय {currentChapter} • श्लोक {currentVerseNumber}
               </span>
 
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={copyVerse}
-                  className="rounded-xl border border-gray-200 p-3 text-gray-500 transition hover:bg-gray-50 hover:text-amber-600"
                   title="श्लोक कॉपी करें"
+                  className="rounded-xl border border-gray-200 p-3 text-gray-500 transition hover:bg-gray-50 hover:text-amber-600"
                 >
                   <Copy size={18} />
                 </button>
@@ -650,8 +666,8 @@ export default function Verse() {
                 <button
                   type="button"
                   onClick={shareVerse}
-                  className="rounded-xl border border-gray-200 p-3 text-gray-500 transition hover:bg-gray-50 hover:text-amber-600"
                   title="श्लोक साझा करें"
+                  className="rounded-xl border border-gray-200 p-3 text-gray-500 transition hover:bg-gray-50 hover:text-amber-600"
                 >
                   <Share2 size={18} />
                 </button>
@@ -659,12 +675,12 @@ export default function Verse() {
                 <button
                   type="button"
                   onClick={toggleFavorite}
+                  title="पसंदीदा"
                   className={`rounded-xl border p-3 transition ${
                     liked
                       ? "border-red-200 bg-red-50 text-red-500"
                       : "border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-red-500"
                   }`}
-                  title="पसंदीदा में जोड़ें"
                 >
                   <Heart size={18} fill={liked ? "currentColor" : "none"} />
                 </button>
@@ -677,7 +693,7 @@ export default function Verse() {
               </div>
             )}
 
-            {/* SHLOKA */}
+            {/* SANSKRIT */}
             <div className="mt-10">
               <div className="mb-4 flex items-center gap-3">
                 <div className="h-px w-8 bg-amber-400" />
@@ -690,8 +706,8 @@ export default function Verse() {
               </div>
 
               <div className="rounded-3xl bg-[#fffaf0] px-5 py-10 sm:px-10 sm:py-12">
-                <p className="text-center font-serif text-2xl leading-[2.1] text-gray-900 sm:text-3xl">
-                  {verse.sanskrit}
+                <p className="whitespace-pre-line text-center font-serif text-2xl leading-[2.1] text-gray-900 sm:text-3xl">
+                  {verse.sanskrit || "संस्कृत पाठ उपलब्ध नहीं है।"}
                 </p>
               </div>
             </div>
@@ -709,45 +725,20 @@ export default function Verse() {
                   <div className="h-px flex-1 bg-amber-100" />
                 </div>
 
-                <div className="relative overflow-hidden rounded-3xl border border-amber-900/10 bg-gradient-to-br from-[#fffaf0] via-white to-amber-50/70 px-5 py-8 shadow-sm sm:px-10 sm:py-10">
-                  <div className="absolute right-5 top-1 font-serif text-6xl leading-none text-amber-500/10">
-                    ॐ
-                  </div>
-
-                  <div className="relative space-y-2.5 text-center">
+                <div className="rounded-3xl border border-amber-900/10 bg-gradient-to-br from-[#fffaf0] via-white to-amber-50/70 px-5 py-8 shadow-sm sm:px-10 sm:py-10">
+                  <div className="space-y-2 text-center">
                     {transliterationLines.map((line, index) => (
                       <p
                         key={`${line}-${index}`}
-                        className="font-sans text-base font-medium leading-8 tracking-wide text-gray-700 sm:text-lg sm:leading-9"
+                        className="text-base font-medium leading-8 tracking-wide text-gray-700 sm:text-lg"
                       >
                         {line}
                       </p>
                     ))}
                   </div>
                 </div>
-
-                <p className="mt-3 text-center text-xs text-gray-400">
-                  संस्कृत श्लोक का रोमन लिपि में उच्चारण रूप
-                </p>
               </div>
             )}
-
-            {/* AUDIO PLACEHOLDER */}
-            <div className="mt-10 rounded-3xl border border-amber-900/10 bg-amber-50 p-5 sm:p-6">
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-600 text-white">
-                  <Volume2 size={21} />
-                </div>
-
-                <div>
-                  <p className="font-semibold text-gray-900">संस्कृत ऑडियो</p>
-
-                  <p className="text-sm text-gray-500">
-                    ऑडियो बाद में जोड़ा जाएगा।
-                  </p>
-                </div>
-              </div>
-            </div>
 
             {/* HINDI MEANING */}
             <div className="mt-10">
@@ -763,7 +754,8 @@ export default function Verse() {
 
               <div className="rounded-3xl border border-gray-100 bg-gray-50 p-6 sm:p-8">
                 <p className="text-lg leading-9 text-gray-700">
-                  {verse.hindiMeaning}
+                  {verse.hindiMeaning ||
+                    "इस श्लोक का हिंदी अर्थ उपलब्ध नहीं है।"}
                 </p>
               </div>
             </div>
@@ -784,7 +776,7 @@ export default function Verse() {
             </div>
 
             <select
-              value={verseNumber}
+              value={currentVerseNumber}
               onChange={(event) => openVerse(event.target.value)}
               className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 font-medium text-gray-700 outline-none transition focus:border-amber-400 sm:w-72"
             >
@@ -797,8 +789,8 @@ export default function Verse() {
           </div>
         </div>
 
-        {/* PREVIOUS / NEXT SHLOKA */}
-        <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {/* PREVIOUS / NEXT */}
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <button
             type="button"
             onClick={goPrevious}
@@ -843,7 +835,7 @@ export default function Verse() {
         </div>
 
         {/* CHAPTER NAVIGATION */}
-        <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <button
             type="button"
             onClick={goPreviousChapter}
@@ -855,8 +847,8 @@ export default function Verse() {
             </p>
 
             <p className="mt-2 font-semibold text-gray-900">
-              {Number(chapterNumber) > 1
-                ? `अध्याय ${Number(chapterNumber) - 1}`
+              {currentChapter > 1
+                ? `अध्याय ${currentChapter - 1}`
                 : "पहला अध्याय"}
             </p>
           </button>
@@ -872,13 +864,14 @@ export default function Verse() {
             </p>
 
             <p className="mt-2 font-semibold text-gray-900">
-              {Number(chapterNumber) < 18
-                ? `अध्याय ${Number(chapterNumber) + 1}`
+              {currentChapter < 18
+                ? `अध्याय ${currentChapter + 1}`
                 : "अंतिम अध्याय"}
             </p>
           </button>
         </div>
       </section>
+
       <Footer />
     </main>
   );
