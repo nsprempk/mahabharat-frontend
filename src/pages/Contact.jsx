@@ -71,7 +71,7 @@ export default function Contact() {
                 className="mt-7 inline-flex items-center gap-3 break-all text-amber-300 hover:text-amber-200"
               >
                 <Mail size={18} />
-                YOUR_EMAIL@example.com
+                contact@bhagavadgita.site
               </a>
 
               <div className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-5">
