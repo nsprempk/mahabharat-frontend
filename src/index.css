@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+:root {
+  font-family: "Noto Sans Devanagari", "Inter", system-ui, sans-serif;
+  color: #1f2937;
+  background: #faf7f0;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: #d97706;
+  color: white;
+}
