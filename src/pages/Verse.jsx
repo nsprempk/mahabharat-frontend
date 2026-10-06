@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+
 import {
   ArrowLeft,
   ArrowRight,
@@ -7,13 +8,17 @@ import {
   Heart,
   Share2,
 } from "lucide-react";
+
 import { Link, useNavigate, useParams } from "react-router-dom";
+
 import { motion } from "framer-motion";
 
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import SEO from "../components/SEO";
 import API from "../services/api";
+
+import { InArticleAd, DisplayAd } from "../components/AdUnit";
 
 const HISTORY_KEY = "gita-reading-history";
 
@@ -23,8 +28,11 @@ function saveReadingHistory({ chapterNumber, verseNumber, sanskrit }) {
 
     const entry = {
       chapterNumber: Number(chapterNumber),
+
       verseNumber: Number(verseNumber),
+
       sanskrit: sanskrit || "",
+
       updatedAt: new Date().toISOString(),
     };
 
@@ -54,6 +62,7 @@ function formatTransliteration(text = "") {
   const words = text.trim().split(/\s+/);
 
   const lines = [];
+
   let line = [];
   let length = 0;
 
@@ -62,6 +71,7 @@ function formatTransliteration(text = "") {
 
     if (line.length >= 4 || length + extra > 42) {
       lines.push(line.join(" "));
+
       line = [word];
       length = word.length;
     } else {
@@ -106,7 +116,7 @@ export default function Verse() {
 
   /*
   |--------------------------------------------------------------------------
-  | Load verse
+  | LOAD VERSE
   |--------------------------------------------------------------------------
   */
 
@@ -137,12 +147,6 @@ export default function Verse() {
 
         const chaptersData = chaptersResponse.data;
 
-        /*
-        |--------------------------------------------------------------------------
-        | Validate single verse
-        |--------------------------------------------------------------------------
-        */
-
         if (!verseData?.success) {
           throw new Error(verseData?.message || "श्लोक उपलब्ध नहीं है।");
         }
@@ -151,29 +155,11 @@ export default function Verse() {
           throw new Error("श्लोक का डेटा उपलब्ध नहीं है।");
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Current verse
-        |--------------------------------------------------------------------------
-        */
-
         setVerse(verseData.verse);
-
-        /*
-        |--------------------------------------------------------------------------
-        | Previous / next
-        |--------------------------------------------------------------------------
-        */
 
         setPreviousVerse(verseData.previousVerse || null);
 
         setNextVerse(verseData.nextVerse || null);
-
-        /*
-        |--------------------------------------------------------------------------
-        | Chapter verses
-        |--------------------------------------------------------------------------
-        */
 
         const verseList = Array.isArray(versesData?.verses)
           ? versesData.verses
@@ -187,16 +173,11 @@ export default function Verse() {
 
         setChapterVerseCount(count);
 
-        setChapterProgress(
+        const progressValue =
           Number(verseData.progress) ||
-            (count > 0 ? Math.round((Number(verseNumber) / count) * 100) : 0),
-        );
+          (count > 0 ? Math.round((Number(verseNumber) / count) * 100) : 0);
 
-        /*
-        |--------------------------------------------------------------------------
-        | Chapters
-        |--------------------------------------------------------------------------
-        */
+        setChapterProgress(Math.min(100, Math.max(0, progressValue)));
 
         const chapterList = Array.isArray(chaptersData?.data)
           ? chaptersData.data
@@ -206,23 +187,11 @@ export default function Verse() {
 
         setChapters(chapterList);
 
-        /*
-        |--------------------------------------------------------------------------
-        | Reading history
-        |--------------------------------------------------------------------------
-        */
-
         saveReadingHistory({
           chapterNumber,
           verseNumber,
           sanskrit: verseData.verse.sanskrit,
         });
-
-        /*
-        |--------------------------------------------------------------------------
-        | Favorite
-        |--------------------------------------------------------------------------
-        */
 
         const favoriteKey = `gita-favorite-${chapterNumber}-${verseNumber}`;
 
@@ -261,7 +230,7 @@ export default function Verse() {
 
   /*
   |--------------------------------------------------------------------------
-  | Transliteration
+  | TRANSLITERATION
   |--------------------------------------------------------------------------
   */
 
@@ -272,7 +241,7 @@ export default function Verse() {
 
   /*
   |--------------------------------------------------------------------------
-  | Favorite
+  | FAVORITE
   |--------------------------------------------------------------------------
   */
 
@@ -292,7 +261,7 @@ export default function Verse() {
 
   /*
   |--------------------------------------------------------------------------
-  | Copy
+  | COPY
   |--------------------------------------------------------------------------
   */
 
@@ -303,11 +272,17 @@ export default function Verse() {
 
     const text = [
       "श्रीमद्भगवद्गीता",
+
       `अध्याय ${chapterNumber} • श्लोक ${verseNumber}`,
+
       "",
+
       verse.sanskrit || "",
+
       "",
+
       "हिंदी अर्थ",
+
       verse.hindiMeaning || "",
     ].join("\n");
 
@@ -326,7 +301,7 @@ export default function Verse() {
 
   /*
   |--------------------------------------------------------------------------
-  | Share
+  | SHARE
   |--------------------------------------------------------------------------
   */
 
@@ -337,8 +312,11 @@ export default function Verse() {
 
     const text = [
       "श्रीमद्भगवद्गीता",
+
       `अध्याय ${chapterNumber} • श्लोक ${verseNumber}`,
+
       "",
+
       verse.sanskrit || "",
     ].join("\n");
 
@@ -346,7 +324,9 @@ export default function Verse() {
       if (navigator.share) {
         await navigator.share({
           title: `भगवद्गीता • अध्याय ${chapterNumber} • श्लोक ${verseNumber}`,
+
           text,
+
           url: window.location.href,
         });
       } else {
@@ -355,14 +335,13 @@ export default function Verse() {
         alert("लिंक कॉपी हो गया।");
       }
     } catch (err) {
-      // User may have cancelled sharing.
       console.log("Share cancelled.");
     }
   };
 
   /*
   |--------------------------------------------------------------------------
-  | Open verse
+  | OPEN VERSE
   |--------------------------------------------------------------------------
   */
 
@@ -378,7 +357,7 @@ export default function Verse() {
 
   /*
   |--------------------------------------------------------------------------
-  | Previous
+  | PREVIOUS
   |--------------------------------------------------------------------------
   */
 
@@ -408,7 +387,7 @@ export default function Verse() {
 
   /*
   |--------------------------------------------------------------------------
-  | Next
+  | NEXT
   |--------------------------------------------------------------------------
   */
 
@@ -430,7 +409,7 @@ export default function Verse() {
 
   /*
   |--------------------------------------------------------------------------
-  | Previous chapter
+  | PREVIOUS CHAPTER
   |--------------------------------------------------------------------------
   */
 
@@ -456,7 +435,7 @@ export default function Verse() {
 
   /*
   |--------------------------------------------------------------------------
-  | Next chapter
+  | NEXT CHAPTER
   |--------------------------------------------------------------------------
   */
 
@@ -472,7 +451,7 @@ export default function Verse() {
 
   /*
   |--------------------------------------------------------------------------
-  | Loading
+  | LOADING
   |--------------------------------------------------------------------------
   */
 
@@ -496,13 +475,20 @@ export default function Verse() {
 
   /*
   |--------------------------------------------------------------------------
-  | Error
+  | ERROR
   |--------------------------------------------------------------------------
   */
 
   if (error || !verse) {
     return (
       <main className="min-h-screen bg-[#faf7f0]">
+        <SEO
+          title="श्लोक उपलब्ध नहीं है | श्रीमद्भगवद्गीता"
+          description="भगवद्गीता का श्लोक उपलब्ध नहीं है।"
+          canonical={`/gita/adhyay/${chapterNumber}/shlok/${verseNumber}`}
+          noindex
+        />
+
         <Navbar />
 
         <section className="flex min-h-[70vh] items-center justify-center px-5 pt-24">
@@ -532,6 +518,12 @@ export default function Verse() {
     );
   }
 
+  /*
+  |--------------------------------------------------------------------------
+  | PAGE VALUES
+  |--------------------------------------------------------------------------
+  */
+
   const currentChapter = Number(chapterNumber);
 
   const currentVerseNumber = Number(verseNumber);
@@ -559,7 +551,10 @@ export default function Verse() {
 
       <Navbar />
 
-      {/* HEADER */}
+      {/* ==================================================
+          HEADER
+      ================================================== */}
+
       <section className="relative overflow-hidden bg-[#111827] px-5 pb-14 pt-32">
         <div className="absolute -right-40 -top-40 h-96 w-96 rounded-full bg-amber-500/10 blur-3xl" />
 
@@ -598,6 +593,7 @@ export default function Verse() {
             </p>
 
             {/* PROGRESS */}
+
             <div className="mt-7 max-w-xl">
               <div className="mb-2 flex items-center justify-between text-sm text-white/50">
                 <span>अध्याय की प्रगति</span>
@@ -613,7 +609,7 @@ export default function Verse() {
                     width: 0,
                   }}
                   animate={{
-                    width: `${Math.max(0, Math.min(100, chapterProgress))}%`,
+                    width: `${chapterProgress}%`,
                   }}
                   transition={{
                     duration: 0.6,
@@ -630,7 +626,10 @@ export default function Verse() {
         </div>
       </section>
 
-      {/* CONTENT */}
+      {/* ==================================================
+          CONTENT
+      ================================================== */}
+
       <section className="mx-auto max-w-5xl px-5 py-12">
         <motion.article
           initial={{
@@ -648,6 +647,7 @@ export default function Verse() {
         >
           <div className="p-6 sm:p-10">
             {/* TOP ACTIONS */}
+
             <div className="flex flex-wrap items-center justify-between gap-4">
               <span className="rounded-full bg-amber-100 px-4 py-2 text-sm font-semibold text-amber-700">
                 अध्याय {currentChapter} • श्लोक {currentVerseNumber}
@@ -693,7 +693,10 @@ export default function Verse() {
               </div>
             )}
 
-            {/* SANSKRIT */}
+            {/* ==================================================
+                SANSKRIT
+            ================================================== */}
+
             <div className="mt-10">
               <div className="mb-4 flex items-center gap-3">
                 <div className="h-px w-8 bg-amber-400" />
@@ -712,7 +715,10 @@ export default function Verse() {
               </div>
             </div>
 
-            {/* TRANSLITERATION */}
+            {/* ==================================================
+                TRANSLITERATION
+            ================================================== */}
+
             {transliterationLines.length > 0 && (
               <div className="mt-10">
                 <div className="mb-4 flex items-center gap-3">
@@ -740,7 +746,10 @@ export default function Verse() {
               </div>
             )}
 
-            {/* HINDI MEANING */}
+            {/* ==================================================
+                HINDI MEANING
+            ================================================== */}
+
             <div className="mt-10">
               <div className="mb-4 flex items-center gap-3">
                 <div className="h-px w-8 bg-amber-400" />
@@ -762,7 +771,18 @@ export default function Verse() {
           </div>
         </motion.article>
 
-        {/* SHLOKA SELECTOR */}
+        {/* ==================================================
+            IN-ARTICLE AD
+        ================================================== */}
+
+        <div className="mt-8">
+          <InArticleAd />
+        </div>
+
+        {/* ==================================================
+            SHLOKA SELECTOR
+        ================================================== */}
+
         <div className="mt-8 rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -789,7 +809,19 @@ export default function Verse() {
           </div>
         </div>
 
-        {/* PREVIOUS / NEXT */}
+        {/* ==================================================
+            DISPLAY AD
+            Separated from navigation controls
+        ================================================== */}
+
+        <div className="mt-8">
+          <DisplayAd />
+        </div>
+
+        {/* ==================================================
+            PREVIOUS / NEXT
+        ================================================== */}
+
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <button
             type="button"
@@ -834,7 +866,10 @@ export default function Verse() {
           </button>
         </div>
 
-        {/* CHAPTER NAVIGATION */}
+        {/* ==================================================
+            CHAPTER NAVIGATION
+        ================================================== */}
+
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <button
             type="button"

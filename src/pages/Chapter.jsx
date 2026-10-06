@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import Footer from "../components/Footer";
 
 import {
   ArrowLeft,
@@ -13,22 +12,35 @@ import {
 import { motion } from "framer-motion";
 
 import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
 import SEO from "../components/SEO";
 import API from "../services/api";
+
+import { InArticleAd, MultiplexAd } from "../components/AdUnit";
 
 export default function Chapter() {
   const { chapterNumber } = useParams();
 
   const [chapter, setChapter] = useState(null);
+
   const [verses, setVerses] = useState([]);
 
   const [loading, setLoading] = useState(true);
+
   const [error, setError] = useState("");
+
+  /*
+  |--------------------------------------------------------------------------
+  | LOAD CHAPTER
+  |--------------------------------------------------------------------------
+  */
 
   useEffect(() => {
     if (!chapterNumber) {
       setError("अध्याय नंबर उपलब्ध नहीं है।");
+
       setLoading(false);
+
       return;
     }
 
@@ -44,6 +56,7 @@ export default function Chapter() {
 
       const [chapterResponse, versesResponse] = await Promise.all([
         API.get(`/chapters/${chapterNumber}`),
+
         API.get(`/verses/chapter/${chapterNumber}`),
       ]);
 
@@ -65,8 +78,6 @@ export default function Chapter() {
 
       setChapter(chapterData.data);
 
-      // IMPORTANT:
-      // Backend returns { verses: [...] }
       setVerses(Array.isArray(versesData.verses) ? versesData.verses : []);
     } catch (err) {
       console.error("❌ Chapter loading error:", err);
@@ -79,34 +90,46 @@ export default function Chapter() {
     }
   };
 
+  /*
+  |--------------------------------------------------------------------------
+  | LOADING
+  |--------------------------------------------------------------------------
+  */
+
   if (loading) {
     return (
       <main className="min-h-screen bg-[#faf7f0]">
         <Navbar />
 
-        <section className="flex min-h-[70vh] items-center justify-center pt-24">
+        <section className="flex min-h-[70vh] items-center justify-center px-5 pt-24">
           <div className="text-center">
             <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-amber-200 border-t-amber-600" />
 
             <p className="mt-5 text-gray-500">अध्याय लोड हो रहा है...</p>
           </div>
         </section>
+
+        <Footer />
       </main>
     );
   }
+
+  /*
+  |--------------------------------------------------------------------------
+  | ERROR
+  |--------------------------------------------------------------------------
+  */
 
   if (error || !chapter) {
     return (
       <>
         <SEO
-          title={`अध्याय ${chapter.number} — ${chapter.title} | श्रीमद्भगवद्गीता`}
-          description={
-            chapter.description ||
-            `भगवद्गीता के अध्याय ${chapter.number} के सभी श्लोक संस्कृत पाठ, लिप्यंतरण और हिंदी अर्थ के साथ पढ़ें।`
-          }
-          canonical={`/gita/adhyay/${chapter.number}`}
-          type="article"
+          title="अध्याय उपलब्ध नहीं है | श्रीमद्भगवद्गीता"
+          description="भगवद्गीता का अध्याय उपलब्ध नहीं है। सभी अध्यायों को देखने के लिए वापस जाएँ।"
+          canonical={`/gita/adhyay/${chapterNumber || ""}`}
+          noindex
         />
+
         <main className="min-h-screen bg-[#faf7f0]">
           <Navbar />
 
@@ -114,23 +137,35 @@ export default function Chapter() {
             <div className="max-w-lg text-center">
               <BookOpen size={50} className="mx-auto text-amber-500" />
 
-              <h1 className="mt-6 text-2xl font-bold">अध्याय उपलब्ध नहीं है</h1>
+              <h1 className="mt-6 text-2xl font-bold text-gray-900">
+                अध्याय उपलब्ध नहीं है
+              </h1>
 
-              <p className="mt-3 text-gray-500">{error}</p>
+              <p className="mt-3 text-gray-500">
+                {error || "अध्याय उपलब्ध नहीं है।"}
+              </p>
 
               <Link
                 to="/gita"
-                className="mt-7 inline-flex items-center gap-2 rounded-xl bg-amber-600 px-5 py-3 font-semibold text-white"
+                className="mt-7 inline-flex items-center gap-2 rounded-xl bg-amber-600 px-5 py-3 font-semibold text-white transition hover:bg-amber-700"
               >
                 <ArrowLeft size={18} />
                 सभी अध्याय
               </Link>
             </div>
           </section>
+
+          <Footer />
         </main>
       </>
     );
   }
+
+  /*
+  |--------------------------------------------------------------------------
+  | PAGE
+  |--------------------------------------------------------------------------
+  */
 
   return (
     <>
@@ -143,10 +178,14 @@ export default function Chapter() {
         canonical={`/gita/adhyay/${chapter.number}`}
         type="article"
       />
+
       <main className="min-h-screen bg-[#faf7f0]">
         <Navbar />
 
-        {/* HERO */}
+        {/* ==================================================
+            HERO
+        ================================================== */}
+
         <section className="relative overflow-hidden bg-[#111827] px-5 pb-20 pt-32">
           <div className="absolute -right-40 -top-40 h-96 w-96 rounded-full border border-amber-400/10" />
 
@@ -174,9 +213,11 @@ export default function Chapter() {
                     अध्याय {chapter.number}
                   </p>
 
-                  <p className="mt-1 text-sm text-white/40">
-                    {chapter.englishTitle}
-                  </p>
+                  {chapter.englishTitle && (
+                    <p className="mt-1 text-sm text-white/40">
+                      {chapter.englishTitle}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -188,9 +229,11 @@ export default function Chapter() {
                 {chapter.title}
               </h1>
 
-              <p className="mt-6 max-w-2xl text-lg leading-8 text-white/60">
-                {chapter.description}
-              </p>
+              {chapter.description && (
+                <p className="mt-6 max-w-2xl text-lg leading-8 text-white/60">
+                  {chapter.description}
+                </p>
+              )}
 
               <div className="mt-8 flex flex-wrap gap-3">
                 <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70">
@@ -209,7 +252,10 @@ export default function Chapter() {
           </div>
         </section>
 
-        {/* VERSES */}
+        {/* ==================================================
+            VERSES
+        ================================================== */}
+
         <section className="mx-auto max-w-6xl px-5 py-14">
           <div className="mb-10 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -244,92 +290,120 @@ export default function Chapter() {
           ) : (
             <div className="grid gap-5">
               {verses.map((verse, index) => (
-                <motion.div
-                  key={verse._id || `${chapterNumber}-${verse.verseNumber}`}
-                  initial={{
-                    opacity: 0,
-                    y: 15,
-                  }}
-                  animate={{
-                    opacity: 1,
-                    y: 0,
-                  }}
-                  transition={{
-                    duration: 0.35,
-                    delay: Math.min(index * 0.04, 0.5),
-                  }}
-                >
-                  <Link
-                    to={`/gita/adhyay/${chapterNumber}/shlok/${verse.verseNumber}`}
-                    className="group block"
+                <div key={verse._id || `${chapterNumber}-${verse.verseNumber}`}>
+                  <motion.div
+                    initial={{
+                      opacity: 0,
+                      y: 15,
+                    }}
+                    animate={{
+                      opacity: 1,
+                      y: 0,
+                    }}
+                    transition={{
+                      duration: 0.35,
+                      delay: Math.min(index * 0.04, 0.5),
+                    }}
                   >
-                    <article className="relative overflow-hidden rounded-3xl border border-gray-100 bg-white p-6 shadow-sm transition duration-300 hover:-translate-y-1 hover:border-amber-200 hover:shadow-xl sm:p-8">
-                      <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-amber-50 opacity-0 transition group-hover:opacity-100" />
+                    <Link
+                      to={`/gita/adhyay/${chapterNumber}/shlok/${verse.verseNumber}`}
+                      className="group block"
+                    >
+                      <article className="relative overflow-hidden rounded-3xl border border-gray-100 bg-white p-6 shadow-sm transition duration-300 hover:-translate-y-1 hover:border-amber-200 hover:shadow-xl sm:p-8">
+                        <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-amber-50 opacity-0 transition group-hover:opacity-100" />
 
-                      <div className="relative flex gap-5">
-                        <div className="shrink-0">
-                          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 font-bold text-amber-700 transition group-hover:bg-amber-600 group-hover:text-white">
-                            {verse.verseNumber}
-                          </div>
-                        </div>
-
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center justify-between gap-3">
-                            <p className="text-xs font-semibold uppercase tracking-[0.15em] text-gray-400">
-                              श्लोक {verse.verseNumber}
-                            </p>
-
-                            <div className="flex items-center gap-3">
-                              {verse.audioSanskritUrl && (
-                                <Volume2 size={17} className="text-amber-600" />
-                              )}
-
-                              <ChevronRight
-                                size={20}
-                                className="text-gray-300 transition group-hover:translate-x-1 group-hover:text-amber-600"
-                              />
+                        <div className="relative flex gap-5">
+                          <div className="shrink-0">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 font-bold text-amber-700 transition group-hover:bg-amber-600 group-hover:text-white">
+                              {verse.verseNumber}
                             </div>
                           </div>
 
-                          <p className="mt-4 font-serif text-xl leading-[1.9] text-gray-900 sm:text-2xl">
-                            {verse.sanskrit}
-                          </p>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-gray-400">
+                                श्लोक {verse.verseNumber}
+                              </p>
 
-                          {verse.transliteration && (
-                            <p className="mt-3 text-sm italic leading-7 text-gray-400">
-                              {verse.transliteration}
-                            </p>
-                          )}
+                              <div className="flex items-center gap-3">
+                                {verse.audioSanskritUrl && (
+                                  <Volume2
+                                    size={17}
+                                    className="text-amber-600"
+                                  />
+                                )}
 
-                          <div className="mt-5 border-t border-gray-100 pt-5">
-                            <p className="line-clamp-3 leading-7 text-gray-600">
-                              {verse.hindiMeaning}
-                            </p>
-                          </div>
-
-                          {verse.tags?.length > 0 && (
-                            <div className="mt-4 flex flex-wrap gap-2">
-                              {verse.tags.slice(0, 4).map((tag) => (
-                                <span
-                                  key={tag}
-                                  className="rounded-full bg-gray-50 px-3 py-1 text-xs text-gray-500"
-                                >
-                                  #{tag}
-                                </span>
-                              ))}
+                                <ChevronRight
+                                  size={20}
+                                  className="text-gray-300 transition group-hover:translate-x-1 group-hover:text-amber-600"
+                                />
+                              </div>
                             </div>
-                          )}
+
+                            <p className="mt-4 font-serif text-xl leading-[1.9] text-gray-900 sm:text-2xl">
+                              {verse.sanskrit}
+                            </p>
+
+                            {verse.transliteration && (
+                              <p className="mt-3 text-sm italic leading-7 text-gray-400">
+                                {verse.transliteration}
+                              </p>
+                            )}
+
+                            <div className="mt-5 border-t border-gray-100 pt-5">
+                              <p className="line-clamp-3 leading-7 text-gray-600">
+                                {verse.hindiMeaning}
+                              </p>
+                            </div>
+
+                            {verse.tags?.length > 0 && (
+                              <div className="mt-4 flex flex-wrap gap-2">
+                                {verse.tags.slice(0, 4).map((tag) => (
+                                  <span
+                                    key={tag}
+                                    className="rounded-full bg-gray-50 px-3 py-1 text-xs text-gray-500"
+                                  >
+                                    #{tag}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </article>
-                  </Link>
-                </motion.div>
+                      </article>
+                    </Link>
+                  </motion.div>
+
+                  {/* ==================================================
+                        IN-ARTICLE AD
+                        After the 10th verse
+                    ================================================== */}
+
+                  {index === 9 && (
+                    <div className="px-1">
+                      <InArticleAd />
+                    </div>
+                  )}
+                </div>
               ))}
+            </div>
+          )}
+
+          {/* ==================================================
+              MULTIPLEX AD
+          ================================================== */}
+
+          {verses.length > 0 && (
+            <div className="mt-10">
+              <MultiplexAd />
             </div>
           )}
         </section>
 
-        {/* BOTTOM */}
+        {/* ==================================================
+            BOTTOM
+        ================================================== */}
+
         <section className="border-t border-gray-100 bg-white">
           <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-8">
             <Link
@@ -351,6 +425,7 @@ export default function Chapter() {
             )}
           </div>
         </section>
+
         <Footer />
       </main>
     </>
