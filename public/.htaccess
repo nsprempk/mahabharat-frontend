@@ -1,9 +1,24 @@
 RewriteEngine On
 
-# Do not rewrite existing files
+# ============================================================
+# SEO / VERIFICATION FILES
+# NEVER SEND THESE FILES TO THE REACT SPA
+# ============================================================
+
+RewriteRule ^sitemap\.xml$ - [L]
+RewriteRule ^robots\.txt$ - [L]
+RewriteRule ^ads\.txt$ - [L]
+
+# ============================================================
+# REAL FILES AND DIRECTORIES
+# ============================================================
+
 RewriteCond %{REQUEST_FILENAME} -f [OR]
 RewriteCond %{REQUEST_FILENAME} -d
 RewriteRule ^ - [L]
 
-# Send all React routes to index.html
+# ============================================================
+# REACT ROUTER SPA FALLBACK
+# ============================================================
+
 RewriteRule ^ index.html [L]
