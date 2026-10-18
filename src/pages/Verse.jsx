@@ -768,6 +768,145 @@ export default function Verse() {
                 </p>
               </div>
             </div>
+
+            {/* ==================================================
+                WORD-BY-WORD MEANING
+            ================================================== */}
+            {Array.isArray(verse.wordMeanings) &&
+              verse.wordMeanings.length > 0 && (
+                <section
+                  className="mt-10"
+                  aria-labelledby="word-meanings-heading"
+                >
+                  <div className="mb-4 flex items-center gap-3">
+                    <div className="h-px w-8 bg-amber-400" />
+                    <h2
+                      id="word-meanings-heading"
+                      className="text-xs font-bold tracking-[0.2em] text-amber-600"
+                    >
+                      शब्द-दर-शब्द अर्थ
+                    </h2>
+                    <div className="h-px flex-1 bg-amber-100" />
+                  </div>
+
+                  <dl className="grid gap-3 sm:grid-cols-2">
+                    {verse.wordMeanings.map((item, index) => (
+                      <div
+                        key={`${item.word || "word"}-${index}`}
+                        className="rounded-2xl border border-amber-900/10 bg-[#fffaf0] p-4"
+                      >
+                        <dt className="font-semibold leading-7 text-gray-900">
+                          {item.word}
+                        </dt>
+                        <dd className="mt-1 leading-7 text-gray-600">
+                          {item.meaning}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                </section>
+              )}
+
+            {/* ==================================================
+                VERSE CONTEXT
+            ================================================== */}
+            {verse.contextHindi?.trim() && (
+              <section
+                className="mt-10"
+                aria-labelledby="verse-context-heading"
+              >
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="h-px w-8 bg-amber-400" />
+                  <h2
+                    id="verse-context-heading"
+                    className="text-xs font-bold tracking-[0.2em] text-amber-600"
+                  >
+                    प्रसंग
+                  </h2>
+                  <div className="h-px flex-1 bg-amber-100" />
+                </div>
+                <div className="rounded-3xl border border-amber-900/10 bg-white p-6 sm:p-8">
+                  <p className="whitespace-pre-line text-base leading-8 text-gray-700">
+                    {verse.contextHindi}
+                  </p>
+                </div>
+              </section>
+            )}
+
+            {/* ==================================================
+                DETAILED HINDI EXPLANATION
+            ================================================== */}
+            {verse.explanationHindi?.trim() && (
+              <section
+                className="mt-10"
+                aria-labelledby="verse-explanation-heading"
+              >
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="h-px w-8 bg-amber-400" />
+                  <h2
+                    id="verse-explanation-heading"
+                    className="text-xs font-bold tracking-[0.2em] text-amber-600"
+                  >
+                    विस्तृत हिंदी व्याख्या
+                  </h2>
+                  <div className="h-px flex-1 bg-amber-100" />
+                </div>
+                <div className="rounded-3xl border border-gray-100 bg-gray-50 p-6 sm:p-8">
+                  <p className="whitespace-pre-line text-base leading-8 text-gray-700">
+                    {verse.explanationHindi}
+                  </p>
+                </div>
+              </section>
+            )}
+
+            {/* ==================================================
+                KEY TEACHING
+            ================================================== */}
+            {verse.keyTeachingHindi?.trim() && (
+              <section className="mt-10" aria-labelledby="key-teaching-heading">
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="h-px w-8 bg-amber-400" />
+                  <h2
+                    id="key-teaching-heading"
+                    className="text-xs font-bold tracking-[0.2em] text-amber-600"
+                  >
+                    मुख्य शिक्षा
+                  </h2>
+                  <div className="h-px flex-1 bg-amber-100" />
+                </div>
+                <div className="rounded-3xl border border-amber-200 bg-amber-50/70 p-6 sm:p-8">
+                  <p className="text-base font-medium leading-8 text-gray-800">
+                    {verse.keyTeachingHindi}
+                  </p>
+                </div>
+              </section>
+            )}
+
+            {/* ==================================================
+                PRACTICAL APPLICATION
+            ================================================== */}
+            {verse.lifeApplicationHindi?.trim() && (
+              <section
+                className="mt-10"
+                aria-labelledby="life-application-heading"
+              >
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="h-px w-8 bg-amber-400" />
+                  <h2
+                    id="life-application-heading"
+                    className="text-xs font-bold tracking-[0.2em] text-amber-600"
+                  >
+                    जीवन में उपयोग
+                  </h2>
+                  <div className="h-px flex-1 bg-amber-100" />
+                </div>
+                <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm sm:p-8">
+                  <p className="whitespace-pre-line text-base leading-8 text-gray-700">
+                    {verse.lifeApplicationHindi}
+                  </p>
+                </div>
+              </section>
+            )}
           </div>
         </motion.article>
 
