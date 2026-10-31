@@ -1,4 +1,4 @@
-import { ArrowLeft, BookOpen, FileText } from "lucide-react";
+import { ArrowLeft, FileText } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import Navbar from "../components/Navbar";

@@ -18,7 +18,7 @@ import Footer from "../components/Footer";
 import SEO from "../components/SEO";
 import API from "../services/api";
 
-import { InArticleAd, DisplayAd } from "../components/AdUnit";
+import { InArticleAd } from "../components/AdUnit";
 
 const HISTORY_KEY = "gita-reading-history";
 
@@ -91,6 +91,13 @@ export default function Verse() {
   const { chapterNumber, verseNumber } = useParams();
 
   const navigate = useNavigate();
+
+  const hasValidVerseRoute =
+    Number.isInteger(Number(chapterNumber)) &&
+    Number(chapterNumber) >= 1 &&
+    Number(chapterNumber) <= 18 &&
+    Number.isInteger(Number(verseNumber)) &&
+    Number(verseNumber) >= 1;
 
   const [verse, setVerse] = useState(null);
 
@@ -217,10 +224,6 @@ export default function Verse() {
 
     if (chapterNumber && verseNumber) {
       loadVerse();
-    } else {
-      setError("श्लोक का URL सही नहीं है।");
-
-      setLoading(false);
     }
 
     return () => {
@@ -334,7 +337,7 @@ export default function Verse() {
 
         alert("लिंक कॉपी हो गया।");
       }
-    } catch (err) {
+    } catch {
       console.log("Share cancelled.");
     }
   };
@@ -455,7 +458,7 @@ export default function Verse() {
   |--------------------------------------------------------------------------
   */
 
-  if (loading) {
+  if (loading && hasValidVerseRoute) {
     return (
       <main className="min-h-screen bg-[#faf7f0]">
         <Navbar />
@@ -479,7 +482,7 @@ export default function Verse() {
   |--------------------------------------------------------------------------
   */
 
-  if (error || !verse) {
+  if (!hasValidVerseRoute || error || !verse) {
     return (
       <main className="min-h-screen bg-[#faf7f0]">
         <SEO
@@ -500,7 +503,10 @@ export default function Verse() {
             </h1>
 
             <p className="mt-3 leading-7 text-gray-500">
-              {error || "श्लोक का डेटा उपलब्ध नहीं है।"}
+              {error ||
+                (!hasValidVerseRoute
+                  ? "श्लोक का URL सही नहीं है।"
+                  : "श्लोक का डेटा उपलब्ध नहीं है।")}
             </p>
 
             <Link
@@ -535,6 +541,18 @@ export default function Verse() {
   const isFirstChapter = currentChapter === 1;
 
   const isLastChapter = currentChapter === 18;
+
+  // Require actual publisher content: Sanskrit, Hindi meaning, and at least
+  // one reviewed explanatory field. A bare verse/navigation screen gets no ad.
+  const hasSubstantialVerseContent =
+    Boolean(verse?.sanskrit?.trim()) &&
+    Boolean(verse?.hindiMeaning?.trim()?.length >= 40) &&
+    [
+      verse?.explanationHindi,
+      verse?.contextHindi,
+      verse?.keyTeachingHindi,
+      verse?.lifeApplicationHindi,
+    ].some((value) => typeof value === "string" && value.trim().length >= 120);
 
   return (
     <main className="min-h-screen bg-[#faf7f0]">
@@ -915,7 +933,7 @@ export default function Verse() {
         ================================================== */}
 
         <div className="mt-8">
-          <InArticleAd />
+          {hasSubstantialVerseContent && <InArticleAd enabled />}
         </div>
 
         {/* ==================================================
@@ -952,10 +970,6 @@ export default function Verse() {
             DISPLAY AD
             Separated from navigation controls
         ================================================== */}
-
-        <div className="mt-8">
-          <DisplayAd />
-        </div>
 
         {/* ==================================================
             PREVIOUS / NEXT

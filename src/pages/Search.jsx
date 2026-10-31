@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, BookOpen, Search as SearchIcon, X } from "lucide-react";
+import { ArrowRight, Search as SearchIcon, X } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import Footer from "../components/Footer";
@@ -17,54 +17,58 @@ export default function Search() {
 
   const [results, setResults] = useState([]);
 
-  const [loading, setLoading] = useState(false);
+  const [completedQuery, setCompletedQuery] = useState("");
 
   const [error, setError] = useState("");
+  const normalizedQuery = queryFromUrl.trim();
+  const loading = Boolean(normalizedQuery) && completedQuery !== normalizedQuery;
 
   useEffect(() => {
-    setQuery(queryFromUrl);
+    const searchQuery = queryFromUrl.trim();
 
-    if (!queryFromUrl.trim()) {
-      setResults([]);
-      setError("");
-      return;
+    if (!searchQuery) {
+      return undefined;
     }
 
-    performSearch(queryFromUrl);
-  }, [queryFromUrl]);
+    let cancelled = false;
 
-  const performSearch = async (searchQuery) => {
-    try {
-      setLoading(true);
-      setError("");
+    const runSearch = async () => {
+      try {
+        const response = await API.get(
+          `/search?q=${encodeURIComponent(searchQuery)}`,
+        );
 
-      const response = await API.get(
-        `/search?q=${encodeURIComponent(searchQuery.trim())}`,
-      );
+        if (!response.data?.success) {
+          throw new Error(response.data?.message || "Search failed");
+        }
 
-      console.log("✅ SEARCH RESPONSE:", response.data);
+        if (cancelled) return;
 
-      if (!response.data?.success) {
-        throw new Error(response.data?.message || "Search failed");
+        setResults(
+          Array.isArray(response.data.verses) ? response.data.verses : [],
+        );
+        setError("");
+      } catch (err) {
+        if (cancelled) return;
+
+        console.error("Search error:", err);
+        setError(
+          err.response?.data?.message ||
+            err.message ||
+            "श्लोक खोजने में समस्या हुई।",
+        );
+        setResults([]);
+      } finally {
+        if (!cancelled) setCompletedQuery(searchQuery);
       }
+    };
 
-      setResults(
-        Array.isArray(response.data.verses) ? response.data.verses : [],
-      );
-    } catch (err) {
-      console.error("Search error:", err);
+    runSearch();
 
-      setError(
-        err.response?.data?.message ||
-          err.message ||
-          "श्लोक खोजने में समस्या हुई।",
-      );
-
-      setResults([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+    return () => {
+      cancelled = true;
+    };
+  }, [queryFromUrl]);
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -74,6 +78,8 @@ export default function Search() {
     if (!value) {
       setSearchParams({});
       setResults([]);
+      setError("");
+      setCompletedQuery("");
       return;
     }
 
@@ -86,6 +92,7 @@ export default function Search() {
     setQuery("");
     setResults([]);
     setError("");
+    setCompletedQuery("");
     setSearchParams({});
   };
 
@@ -231,7 +238,7 @@ export default function Search() {
               </div>
             )}
 
-          {!loading && !error && results.length > 0 && (
+          {!loading && !error && queryFromUrl.trim() && results.length > 0 && (
             <>
               <div className="mb-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                 <div>

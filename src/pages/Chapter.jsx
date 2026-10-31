@@ -16,7 +16,7 @@ import Footer from "../components/Footer";
 import SEO from "../components/SEO";
 import API from "../services/api";
 
-import { InArticleAd, MultiplexAd } from "../components/AdUnit";
+import { InArticleAd } from "../components/AdUnit";
 
 export default function Chapter() {
   const { chapterNumber } = useParams();
@@ -25,9 +25,10 @@ export default function Chapter() {
 
   const [verses, setVerses] = useState([]);
 
-  const [loading, setLoading] = useState(true);
+  const [loadedChapterNumber, setLoadedChapterNumber] = useState("");
 
   const [error, setError] = useState("");
+  const loading = String(loadedChapterNumber) !== String(chapterNumber);
 
   /*
   |--------------------------------------------------------------------------
@@ -37,64 +38,77 @@ export default function Chapter() {
 
   useEffect(() => {
     if (!chapterNumber) {
-      setError("अध्याय नंबर उपलब्ध नहीं है।");
-
-      setLoading(false);
-
-      return;
+      return undefined;
     }
 
-    loadChapter();
+    let cancelled = false;
+
+    const fetchChapter = async () => {
+      try {
+        const [chapterResponse, versesResponse] = await Promise.all([
+          API.get(`/chapters/${chapterNumber}`),
+          API.get(`/verses/chapter/${chapterNumber}`),
+        ]);
+
+        const chapterData = chapterResponse.data;
+        const versesData = versesResponse.data;
+
+        if (!chapterData?.success) {
+          throw new Error(chapterData?.message || "Chapter not found");
+        }
+
+        if (!versesData?.success) {
+          throw new Error(versesData?.message || "Verses could not be loaded");
+        }
+
+        if (cancelled) return;
+
+        setError("");
+        setChapter(chapterData.data);
+        setVerses(Array.isArray(versesData.verses) ? versesData.verses : []);
+      } catch (err) {
+        if (cancelled) return;
+
+        console.error("Chapter loading error:", err);
+        setError(
+          err.response?.data?.message || err.message || "अध्याय लोड नहीं हो सका।",
+        );
+      } finally {
+        if (!cancelled) {
+          setLoadedChapterNumber(String(chapterNumber));
+        }
+      }
+    };
+
+    fetchChapter();
+
+    return () => {
+      cancelled = true;
+    };
   }, [chapterNumber]);
-
-  const loadChapter = async () => {
-    try {
-      setLoading(true);
-      setError("");
-
-      console.log("✅ SINGLE CHAPTER:", chapterNumber);
-
-      const [chapterResponse, versesResponse] = await Promise.all([
-        API.get(`/chapters/${chapterNumber}`),
-
-        API.get(`/verses/chapter/${chapterNumber}`),
-      ]);
-
-      const chapterData = chapterResponse.data;
-
-      const versesData = versesResponse.data;
-
-      console.log("✅ CHAPTER RESPONSE:", chapterData);
-
-      console.log("✅ VERSES RESPONSE:", versesData);
-
-      if (!chapterData?.success) {
-        throw new Error(chapterData?.message || "Chapter not found");
-      }
-
-      if (!versesData?.success) {
-        throw new Error(versesData?.message || "Verses could not be loaded");
-      }
-
-      setChapter(chapterData.data);
-
-      setVerses(Array.isArray(versesData.verses) ? versesData.verses : []);
-    } catch (err) {
-      console.error("❌ Chapter loading error:", err);
-
-      setError(
-        err.response?.data?.message || err.message || "अध्याय लोड नहीं हो सका।",
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
 
   /*
   |--------------------------------------------------------------------------
   | LOADING
   |--------------------------------------------------------------------------
   */
+
+  if (!chapterNumber) {
+    return (
+      <main className="min-h-screen bg-[#faf7f0]">
+        <Navbar />
+        <section className="px-5 pb-20 pt-32 text-center">
+          <h1 className="text-2xl font-bold text-gray-900">
+            अध्याय नंबर उपलब्ध नहीं है।
+          </h1>
+          <Link to="/gita" className="mt-6 inline-flex text-amber-700">
+            सभी अध्याय देखें
+          </Link>
+        </section>
+        <Footer />
+      </main>
+    );
+  }
 
   if (loading) {
     return (
@@ -160,6 +174,17 @@ export default function Chapter() {
       </>
     );
   }
+
+  // Only show a manual ad when the chapter and a meaningful set of verses
+  // have loaded successfully. Empty/error/loading states never reach this point.
+  const hasSubstantialChapterContent =
+    Boolean(chapter?.description?.trim()?.length >= 100) &&
+    verses.length >= 10 &&
+    verses.slice(0, 10).every(
+      (item) =>
+        Boolean(item?.sanskrit?.trim()) &&
+        Boolean(item?.hindiMeaning?.trim()?.length >= 40),
+    );
 
   /*
   |--------------------------------------------------------------------------
@@ -379,9 +404,9 @@ export default function Chapter() {
                         After the 10th verse
                     ================================================== */}
 
-                  {index === 9 && (
+                  {index === 9 && hasSubstantialChapterContent && (
                     <div className="px-1">
-                      <InArticleAd />
+                      <InArticleAd enabled />
                     </div>
                   )}
                 </div>
@@ -393,11 +418,6 @@ export default function Chapter() {
               MULTIPLEX AD
           ================================================== */}
 
-          {verses.length > 0 && (
-            <div className="mt-10">
-              <MultiplexAd />
-            </div>
-          )}
         </section>
 
         {/* ==================================================

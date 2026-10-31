@@ -48,60 +48,74 @@ function getFavoriteKeys() {
 
 export default function Favorites() {
   const [favorites, setFavorites] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [loadedKey, setLoadedKey] = useState(-1);
   const [error, setError] = useState("");
+  const loading = loadedKey !== reloadKey;
 
   useEffect(() => {
-    loadFavorites();
-  }, []);
+    let cancelled = false;
 
-  const loadFavorites = async () => {
-    try {
-      setLoading(true);
-      setError("");
+    const fetchFavorites = async () => {
+      try {
+        // Yield once so even the empty-favorites path completes asynchronously.
+        await Promise.resolve();
 
-      const favoriteKeys = getFavoriteKeys();
+        const favoriteKeys = getFavoriteKeys();
 
-      if (favoriteKeys.length === 0) {
-        setFavorites([]);
-        return;
+        if (favoriteKeys.length === 0) {
+          if (!cancelled) setFavorites([]);
+          return;
+        }
+
+        const results = await Promise.allSettled(
+          favoriteKeys.map(async (item) => {
+            const response = await API.get(
+              `/verses/chapter/${item.chapterNumber}/verse/${item.verseNumber}`,
+            );
+
+            const data = response.data;
+
+            if (!data?.success || !data?.verse) {
+              throw new Error(`श्लोक ${item.verseNumber} उपलब्ध नहीं है।`);
+            }
+
+            return {
+              ...item,
+              verse: data.verse,
+            };
+          }),
+        );
+
+        const loadedFavorites = results
+          .filter((result) => result.status === "fulfilled")
+          .map((result) => result.value);
+
+        if (!cancelled) setFavorites(loadedFavorites);
+      } catch (err) {
+        if (cancelled) return;
+
+        console.error("Favorites loading error:", err);
+        setError(
+          err.response?.data?.message ||
+            err.message ||
+            "पसंदीदा श्लोक लोड नहीं हो सके।",
+        );
+      } finally {
+        if (!cancelled) setLoadedKey(reloadKey);
       }
+    };
 
-      const results = await Promise.allSettled(
-        favoriteKeys.map(async (item) => {
-          const response = await API.get(
-            `/verses/chapter/${item.chapterNumber}/verse/${item.verseNumber}`,
-          );
+    fetchFavorites();
 
-          const data = response.data;
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadKey]);
 
-          if (!data?.success || !data?.verse) {
-            throw new Error(`श्लोक ${item.verseNumber} उपलब्ध नहीं है।`);
-          }
-
-          return {
-            ...item,
-            verse: data.verse,
-          };
-        }),
-      );
-
-      const loadedFavorites = results
-        .filter((result) => result.status === "fulfilled")
-        .map((result) => result.value);
-
-      setFavorites(loadedFavorites);
-    } catch (err) {
-      console.error("Favorites loading error:", err);
-
-      setError(
-        err.response?.data?.message ||
-          err.message ||
-          "पसंदीदा श्लोक लोड नहीं हो सके।",
-      );
-    } finally {
-      setLoading(false);
-    }
+  const handleRetry = () => {
+    setError("");
+    setReloadKey((current) => current + 1);
   };
 
   const removeFavorite = (item) => {
@@ -199,7 +213,7 @@ export default function Favorites() {
 
               <button
                 type="button"
-                onClick={loadFavorites}
+                onClick={handleRetry}
                 className="mt-6 rounded-xl bg-red-600 px-5 py-3 font-semibold text-white transition hover:bg-red-700"
               >
                 पुनः प्रयास करें

@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Menu, X, BookOpen, Search } from "lucide-react";
+import { Menu, X, Search } from "lucide-react";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
