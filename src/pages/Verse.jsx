@@ -929,14 +929,6 @@ export default function Verse() {
         </motion.article>
 
         {/* ==================================================
-            IN-ARTICLE AD
-        ================================================== */}
-
-        <div className="mt-8">
-          {hasSubstantialVerseContent && <InArticleAd enabled />}
-        </div>
-
-        {/* ==================================================
             SHLOKA SELECTOR
         ================================================== */}
 
@@ -1059,6 +1051,12 @@ export default function Verse() {
           </button>
         </div>
       </section>
+
+      {hasSubstantialVerseContent && (
+        <div className="mx-auto max-w-5xl px-5 pt-12">
+          <InArticleAd enabled />
+        </div>
+      )}
 
       <Footer />
     </main>

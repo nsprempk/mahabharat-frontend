@@ -1,8 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
-
-const ADSENSE_CLIENT =
-  import.meta.env.VITE_ADSENSE_CLIENT || "ca-pub-9240988934767169";
+import { ADSENSE_CLIENT, ADSENSE_ENABLED } from "../utils/adsense";
 
 /**
  * Manual ad unit.
@@ -28,7 +26,9 @@ export default function AdUnit({
     /^\/gita\/adhyay\/\d+$/.test(pathname) ||
     /^\/gita\/adhyay\/\d+\/shlok\/\d+$/.test(pathname);
 
-  const shouldRender = Boolean(enabled && slot && isContentRoute);
+  const shouldRender = Boolean(
+    ADSENSE_ENABLED && enabled && slot && isContentRoute,
+  );
 
   useEffect(() => {
     const adElement = adRef.current;

@@ -399,24 +399,10 @@ export default function Chapter() {
                     </Link>
                   </motion.div>
 
-                  {/* ==================================================
-                        IN-ARTICLE AD
-                        After the 10th verse
-                    ================================================== */}
-
-                  {index === 9 && hasSubstantialChapterContent && (
-                    <div className="px-1">
-                      <InArticleAd enabled />
-                    </div>
-                  )}
                 </div>
               ))}
             </div>
           )}
-
-          {/* ==================================================
-              MULTIPLEX AD
-          ================================================== */}
 
         </section>
 
@@ -445,6 +431,12 @@ export default function Chapter() {
             )}
           </div>
         </section>
+
+        {hasSubstantialChapterContent && (
+          <div className="mx-auto max-w-5xl px-5 py-10">
+            <InArticleAd enabled />
+          </div>
+        )}
 
         <Footer />
       </main>
